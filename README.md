@@ -52,7 +52,7 @@ Use `generate.py`
   - `-f` | `--filter`: Path of filter config file. Default: `./filter_generate.yaml`. 
     > Filtering can be applied directly during generation process so that all generated ligands meet the criteria. To customize the filtering criteria, modify the `filter_generate.yaml` file
   - `-d` | `--device`: Device to use. Default: `cuda`. 
-    > In a multi-GPU environment, specify the number to be used, such as `cuda:1`. Multi-GPU distributed inference will be supported in future versions.
+    > In a multi-GPU environment, specify the order of GPU to be used, such as `cuda:1`. Multi-GPU distributed inference will be supported in future versions.
   - `--pp_proc`: Number of post-processing parallel processes. Default value is the total number of CPU cores on the device.
   - `--em_iters`: Max number of iterations for energy minimization. Default: `10000`
   - `--queue_len`: Maximum length of the cache queue. Default: `100`. 
@@ -74,11 +74,11 @@ Before using, please download reference database supported by FPSim2 to the root
 Use `check_novelty.py`
 - Common arguments
   - `-i` | `--input`: Path of input directory containing *_prop.json files. Default: `./result/generated_ligands/`  
-  - `-t` | `--threshold`: Model to use for generation. Default: `0.6`
+  - `-t` | `--threshold`: Tanimoto similarity threshold. Default: `0.6`
     > The lower the threshold is, the more patent molecules will be searched, and the slower the search speed will be. 
   - `-f` | `--fp_database`: Path of FPSim2 reference database. Default: `./fpsim2_fingerprints.h5`. 
   - `-d` | `--device`: Device to use. Default: `cpu`. 
-    > GPU is also supported, just set to `cuda`. In a multi-GPU environment, specify the number to be used, such as `cuda:1`.
+    > GPU is also supported, just set to `cuda`. In a multi-GPU environment, specify the order of GPU to be used, such as `cuda:1`.
   - `--proc`: Number of parallel processes. Default value is the total number of CPU cores on the device. Not avaliable when `--device` is set to `cuda`.
 
 ### 🗃 Clustering
