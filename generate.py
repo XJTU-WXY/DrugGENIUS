@@ -23,8 +23,9 @@ def batch_smiles_to_sdf(smiles_list: List[str], output_dir: str, filter_dict: Un
         results = pool.map(_smiles_to_sdf_worker, args)
     return results
 
-def generator_process(queue: mp.Queue, generate_model, target_seq, max_queue_len: int, model_kwargs: dict, init_seed: Union[int, None]):
+def generator_process(queue: mp.Queue, generate_model, device, target_seq, max_queue_len: int, model_kwargs: dict, init_seed: Union[int, None]):
     current_seed = init_seed
+    generate_model = getattr(model, generate_model)(device=device)
     while True:
         if queue.qsize() < max_queue_len:
             if current_seed is not None:
@@ -50,7 +51,13 @@ def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None],
                 em_iters=em_iters,
                 num_pp_processes=num_pp_processes
             )
-            success_count = sum([1 for r in results if r is not None])
+            success_count = sum([1 for r in results if r == 0])
+            duplicate = [r for r in results if r]
+            for m in duplicate:
+                meta_data = load_json(m)
+                meta_data["GenerationFrequency"] += 1
+                save_json(meta_data, m)
+
             with counter.get_lock():
                 counter.value += success_count
                 pbar.update(success_count)
@@ -62,7 +69,7 @@ def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None],
             time.sleep(0.5)
     pbar.close()
 
-def run_pipeline(generate_model, target_seq: str, model_kwargs: dict,
+def run_pipeline(generate_model, device: str, target_seq: str, model_kwargs: dict,
                  output_dir: str, total_num: int,
                  filter_dict: Union[dict, None], em_iters: int,
                  max_queue_len: int, num_pp_proc: int, init_seed: Union[int, None]):
@@ -70,7 +77,7 @@ def run_pipeline(generate_model, target_seq: str, model_kwargs: dict,
     queue = mp.Queue(maxsize=max_queue_len)
     counter = mp.Value('i', 0)
 
-    gen_proc = mp.Process(target=generator_process, args=(queue, generate_model, target_seq, max_queue_len, model_kwargs, init_seed))
+    gen_proc = mp.Process(target=generator_process, args=(queue, generate_model, device, target_seq, max_queue_len, model_kwargs, init_seed))
     pp_proc = mp.Process(target=pp_process, args=(queue, output_dir, filter_dict, em_iters, total_num, counter, num_pp_proc))
 
     gen_proc.start()
@@ -102,14 +109,13 @@ def main():
         target_seq = read_fasta_file(args.input)
     else:
         target_seq = args.input
-
-    print("Loading model...")
-    generate_model = getattr(model, args.model)(device=args.device)
+    print(f"Target: {target_seq}")
 
     os.makedirs(args.output, exist_ok=True)
 
     run_pipeline(
-        generate_model=generate_model,
+        generate_model=args.model,
+        device=args.device,
         target_seq=target_seq,
         model_kwargs=model_kwargs,
         output_dir=args.output,

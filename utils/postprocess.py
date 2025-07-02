@@ -103,11 +103,8 @@ def smiles_to_sdf(smiles: str,
             meta_data = {"Hash": smiles_hash, "SMILES": canonical_smiles, "GenerationFrequency": 1}
             meta_data.update(mol_prop)
             save_json(meta_data, json_path)
-            return smiles_hash
+            return 0
         else:
             return None
     else:
-        meta_data = load_json(json_path)
-        meta_data["GenerationFrequency"] += 1
-        save_json(meta_data, json_path)
-        return None
+        return json_path
