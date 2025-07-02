@@ -92,7 +92,7 @@ Use `clutser.py`
   - `-f` | `--filter`: Path of filter config file. Default: `./filter_clustering.yaml`. 
     > Filtering can be applied during clustering process to reduce calculation. To customize the filtering criteria, modify the `filter_clustering.yaml` file.
   - `--no_cache`: Force refreshing the cache of fps and dimensionality reduction results.
-    > Calculating fingerprints and dimensionality reduction may take a long time. By default, 
+    > Calculating fingerprints and dimensionality reduction may take a long time. By default, already calculated fingerprints and t-SNE embeddings will not be recalculated in a new run. To force a cache refresh, enable this argument.
   - `--proc`: Number of dimensionality reduction and clustering processes. Default value is the total number of CPU cores on the device.
   - `--seed`: Random seed for dimensionality reduction and clustering. Default: `42`
 
