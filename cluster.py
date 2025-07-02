@@ -94,6 +94,8 @@ def main():
     parser.add_argument("--proc", type=int, default=cpu_count(), help="Number of parallel processes.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for t-SNE.")
     args = parser.parse_args()
+    paras = vars(args)
+    about("Clustering", paras)
 
     os.makedirs(args.output, exist_ok=True)
 

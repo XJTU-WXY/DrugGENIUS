@@ -32,3 +32,16 @@ def read_fasta_file(file_path):
 
         protein_sequence = ''.join(sequence)
     return protein_sequence
+
+def about(mode, args):
+    print(f"""
+    ____                   _____________   ________  _______
+   / __ \_______  ______ _/ ____/ ____/ | / /  _/ / / / ___/
+  / / / / ___/ / / / __ `/ / __/ __/ /  |/ // // / / /\__ \ 
+ / /_/ / /  / /_/ / /_/ / /_/ / /___/ /|  // // /_/ /___/ / 
+/_____/_/   \__,_/\__, /\____/_____/_/ |_/___/\____//____/  
+                 /____/                                     
+ An All-in-One Framework for Sequence-based Ligand Design
+   Licensed under GNU GPLv3     XJTU-WXY @ FISSION Lab
+{mode:=^60}""")
+    print(f"Parameters: {args}")

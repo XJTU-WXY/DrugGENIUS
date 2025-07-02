@@ -91,22 +91,23 @@ def smiles_to_sdf(smiles: str,
 
     canonical_smiles = Chem.MolToSmiles(mol, canonical=True)
 
-    mol_prop = calc_mol_properties(mol)
-
-    if not filter_mol_by_prop(mol_prop, filter_dict):
-        return None
-
     smiles_hash = hashlib.sha1(canonical_smiles.encode()).hexdigest()
     sdf_path = os.path.join(output_dir, f"{smiles_hash}.sdf")
     json_path = os.path.join(output_dir, f"{smiles_hash}.json")
 
     if not os.path.exists(sdf_path):
+        mol_prop = calc_mol_properties(mol)
+        if not filter_mol_by_prop(mol_prop, filter_dict):
+            return None
         if mol_to_minimized_sdf(mol, sdf_path, em_iters=em_iters):
-            meta_data = {"Hash": smiles_hash, "SMILES": canonical_smiles}
+            meta_data = {"Hash": smiles_hash, "SMILES": canonical_smiles, "GenerationFrequency": 1}
             meta_data.update(mol_prop)
             save_json(meta_data, json_path)
             return smiles_hash
         else:
             return None
     else:
+        meta_data = load_json(json_path)
+        meta_data["GenerationFrequency"] += 1
+        save_json(meta_data, json_path)
         return None

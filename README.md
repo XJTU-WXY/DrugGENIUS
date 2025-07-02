@@ -56,6 +56,7 @@ Use `generate.py`
   - `--pp_proc`: Number of post-processing parallel processes. Default value is the total number of CPU cores on the device.
   - `--em_iters`: Max number of iterations for energy minimization. Default: `10000`
   - `--queue_len`: Maximum length of the cache queue. Default: `100`. 
+  - `--init_seed`: The initial random seed for result reproducibility. Each generated batch will increase the seed by one. If not specified, current timestamp will be used as random seed for each batch.
   
 - Arguments for `DrugGPT` model
   - `--batch_size`: The number of molecules to try to generate in each batch. Default: `16`

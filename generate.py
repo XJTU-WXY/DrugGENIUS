@@ -23,20 +23,24 @@ def batch_smiles_to_sdf(smiles_list: List[str], output_dir: str, filter_dict: Un
         results = pool.map(_smiles_to_sdf_worker, args)
     return results
 
-def generator_process(queue: mp.Queue, generate_model, target_seq, max_queue_len: int, model_kwargs):
+def generator_process(queue: mp.Queue, generate_model, target_seq, max_queue_len: int, model_kwargs: dict, init_seed: Union[int, None]):
+    current_seed = init_seed
     while True:
         if queue.qsize() < max_queue_len:
-            smiles_batch = generate_model.generate(target_seq, **model_kwargs)
+            if current_seed is not None:
+                current_seed += 1
+            smiles_batch = generate_model.generate(target_seq, current_seed, **model_kwargs)
             queue.put(smiles_batch)
         else:
             time.sleep(0.5)
 
 def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None], em_iters: int, total_num: int,
                counter: mp.Value, num_pp_processes: int):
-    pbar = tqdm(total=total_num, desc="Generating ligands")
+    current_batch = 1
+    pbar = tqdm(total=total_num, desc="Generating ligands", position=0)
     while True:
         queue_len = queue.qsize()
-        pbar.set_description(f"Generating ligands | Queue size: {queue_len}")
+        pbar.set_postfix({"Queue": queue_len, "Current batch": current_batch})
         if not queue.empty():
             smiles_batch = queue.get()
             results = batch_smiles_to_sdf(
@@ -53,6 +57,7 @@ def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None],
 
             if counter.value >= total_num:
                 break
+            current_batch += 1
         else:
             time.sleep(0.5)
     pbar.close()
@@ -60,12 +65,12 @@ def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None],
 def run_pipeline(generate_model, target_seq: str, model_kwargs: dict,
                  output_dir: str, total_num: int,
                  filter_dict: Union[dict, None], em_iters: int,
-                 max_queue_len: int, num_pp_proc: int):
+                 max_queue_len: int, num_pp_proc: int, init_seed: Union[int, None]):
     mp.set_start_method("spawn", force=True)
     queue = mp.Queue(maxsize=max_queue_len)
     counter = mp.Value('i', 0)
 
-    gen_proc = mp.Process(target=generator_process, args=(queue, generate_model, target_seq, max_queue_len, model_kwargs))
+    gen_proc = mp.Process(target=generator_process, args=(queue, generate_model, target_seq, max_queue_len, model_kwargs, init_seed))
     pp_proc = mp.Process(target=pp_process, args=(queue, output_dir, filter_dict, em_iters, total_num, counter, num_pp_proc))
 
     gen_proc.start()
@@ -74,21 +79,6 @@ def run_pipeline(generate_model, target_seq: str, model_kwargs: dict,
     pp_proc.join()
     gen_proc.terminate()
     torch.cuda.empty_cache()
-
-def about(args):
-    print("""
-
-    ____                   _____________   ________  _______
-   / __ \_______  ______ _/ ____/ ____/ | / /  _/ / / / ___/
-  / / / / ___/ / / / __ `/ / __/ __/ /  |/ // // / / /\__ \ 
- / /_/ / /  / /_/ / /_/ / /_/ / /___/ /|  // // /_/ /___/ / 
-/_____/_/   \__,_/\__, /\____/_____/_/ |_/___/\____//____/  
-                 /____/                                     
- An All-in-One Framework for Sequence-based Ligand Design
-   Licensed under GNU GPLv3     XJTU-WXY @ FISSION Lab
-======================= Parameters =========================
-    """)
-    print(args)
 
 def main():
     parser = argparse.ArgumentParser()
@@ -101,17 +91,19 @@ def main():
     parser.add_argument('--pp_proc', type=int, default=cpu_count(), help='Number of post-processing parallel processes.')
     parser.add_argument('--em_iters', type=int, default=10000, help='Max number of iterations for energy minimization.')
     parser.add_argument('--queue_len', type=int, default=100, help='Maximum length of the cache queue.')
+    parser.add_argument('--init_seed', type=int, default=None, help='The initial random seed for result reproducibility. Each generated batch will increase the seed by one. If not specified, current timestamp will be used as random seed for each batch.')
     args, unknown_args = parser.parse_known_args()
     model_kwargs = parse_extra_args(unknown_args)
     paras = vars(args)
     paras.update(model_kwargs)
-    about(paras)
+    about("Generation", paras)
 
     if os.path.exists(args.input):
         target_seq = read_fasta_file(args.input)
     else:
         target_seq = args.input
 
+    print("Loading model...")
     generate_model = getattr(model, args.model)(device=args.device)
 
     os.makedirs(args.output, exist_ok=True)
@@ -125,7 +117,8 @@ def main():
         filter_dict=load_yaml(args.filter),
         em_iters=args.em_iters,
         max_queue_len=args.queue_len,
-        num_pp_proc=args.pp_proc
+        num_pp_proc=args.pp_proc,
+        init_seed=args.init_seed
     )
 
 if __name__ == "__main__":

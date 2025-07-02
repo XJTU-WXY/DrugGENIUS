@@ -17,6 +17,8 @@ def main():
     parser.add_argument("-d", "--device", type=str, default="cpu", help="Path of FPSim2 reference database.")
     parser.add_argument("--proc", type=int, default=cpu_count(), help="Number of parallel processes.")
     args = parser.parse_args()
+    paras = vars(args)
+    about("Novelty Checking", paras)
 
     print("Loading patented molecules fingerprint database ...")
     if args.device == "cpu":

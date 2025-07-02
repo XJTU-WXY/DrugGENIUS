@@ -4,19 +4,19 @@ Properties:
     Max: null
   HeavyAtomCount:
     Min: null
-    Max: 35
+    Max: null
   LogP:
     Min: null
     Max: null
   QED:
-    Min: 0.5
+    Min: null
     Max: null
   SA:
     Min: null
-    Max: 7
+    Max: null
   TPSA:
     Min: null
-    Max: 140
+    Max: null
   HBD:
     Min: null
     Max: null
@@ -25,17 +25,17 @@ Properties:
     Max: null
   RotatableBonds:
     Min: null
-    Max: 10
+    Max: null
   NumAromaticRings:
     Min: null
     Max: null
   FractionCSP3:
-    Min: 0.42
+    Min: null
     Max: null
   FormalCharge:
-    Min: -1
-    Max: 1
+    Min: null
+    Max: null
   NumAliphaticRings:
     Min: null
     Max: null
-Lipinski: true
+Lipinski: false
