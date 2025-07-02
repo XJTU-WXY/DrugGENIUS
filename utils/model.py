@@ -26,7 +26,7 @@ class DrugGPT(AbstractModel):
                  target_seq: str,
                  ligand_prompt: str="",
                  batch_size: int=16,
-                 top_k: int=9,
+                 top_k: int=40,
                  top_p: float=0.9,
                  temp: float=1.0) -> List[str]:
         prompt = f"<|startoftext|><P>{target_seq}<L>{ligand_prompt}"

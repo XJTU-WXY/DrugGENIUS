@@ -88,7 +88,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--input", type=str, default=os.path.join(os.getcwd(), "result", "generated_ligands"), help="Path of input directory containing *_prop.json files.")
     parser.add_argument("-o", "--output", type=str, default=os.path.join(os.getcwd(), "result", "cluster_report"), help="Path of output directory for report files.")
-    parser.add_argument("-k", "--resolution", type=float, default=10, help="Clustering resolution (DBSCAN eps)")
+    parser.add_argument("-k", "--k_neighbors", type=float, default=10, help="Number of nearest neighbors to use in clustering.")
     parser.add_argument('-f', '--filter', type=str, default=os.path.join(os.getcwd(), "filter_cluster.yaml"), help='Path of filter config file.')
     parser.add_argument("--no_cache", action='store_true', default=False, help="Force refreshing the cache of fps and t-SNE results.")
     parser.add_argument("--proc", type=int, default=cpu_count(), help="Number of parallel processes.")

@@ -88,6 +88,7 @@ Use `clutser.py`
 - Common arguments
   - `-i` | `--input`: Path of input directory containing *.sdf and *_prop.json files. Default: `./result/generated_ligands/`
   - `-o` | `--output`: Path of output directory for report files. Default: `./result/cluster_report/`
+  - `-k` | `--k_neighbors`: Number of nearest neighbors to use in clustering. Default: `10`. 
   - `-f` | `--filter`: Path of filter config file. Default: `./filter_clustering.yaml`. 
     > Filtering can be applied during clustering process to reduce calculation. To customize the filtering criteria, modify the `filter_clustering.yaml` file.
   - `--no_cache`: Force refreshing the cache of fps and dimensionality reduction results.
@@ -99,6 +100,24 @@ Use `clutser.py`
 After above steps, users can identify molecules of interest according to their research goals and filtering criteria. DrugGENIUS also supports batch molecular docking and provides docking scores for each ligand. To perform docking, users need to prepare a hash list of selected molecules—this is a plain text file with one hash per line. Alternatively, candidate molecules can be selected directly from the clustering report.
 
 **TODO**
+
+### 📇 About the filter
+| Property             | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| MolWt                | Molecular weight (in Daltons). Filters molecules based on their total mass. |
+| HeavyAtomCount       | Number of heavy (non-hydrogen) atoms. Controls molecular size and complexity. |
+| LogP                 | Partition coefficient (logP), indicating hydrophobicity.                    |
+| QED                  | Quantitative Estimate of Drug-likeness. Higher values suggest better drug-like properties. |
+| SA                   | Synthetic Accessibility score. Lower values indicate easier synthesis.      |
+| TPSA                 | Topological Polar Surface Area. Related to molecule's ability to permeate cells. |
+| HBD                  | Number of hydrogen bond donors. Affects solubility and binding.             |
+| HBA                  | Number of hydrogen bond acceptors. Influences molecule's polarity and interaction. |
+| RotatableBonds       | Number of rotatable bonds. Controls molecular flexibility.                  |
+| NumAromaticRings     | Number of aromatic rings in the molecule. Often associated with drug-like features. |
+| FractionCSP3         | Fraction of sp3-hybridized carbon atoms. Indicates 3D character of molecules. |
+| FormalCharge         | Net formal charge of the molecule. Used to filter highly charged compounds. |
+| NumAliphaticRings    | Number of non-aromatic (aliphatic) rings.                                   |
+| Lipinski             | Whether to apply Lipinski's Rule of Five for drug-likeness.                 |
 
 ## 📑 Cite this work
 **TODO**
