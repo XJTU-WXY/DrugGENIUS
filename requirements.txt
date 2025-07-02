@@ -1,0 +1,10 @@
+transformers
+rdkit
+tqdm
+matplotlib
+scikit-learn
+FPSim2
+pyyaml
+numpy
+networkx
+python-louvain

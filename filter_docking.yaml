@@ -1,0 +1,41 @@
+Properties:
+  MolWt:
+    Min: null
+    Max: null
+  HeavyAtomCount:
+    Min: 10
+    Max: 50
+  LogP:
+    Min: null
+    Max: null
+  QED:
+    Min: 0.3
+    Max: null
+  SA:
+    Min: null
+    Max: 5
+  TPSA:
+    Min: null
+    Max: 140
+  HBD:
+    Min: null
+    Max: null
+  HBA:
+    Min: null
+    Max: null
+  RotatableBonds:
+    Min: null
+    Max: 10
+  NumAromaticRings:
+    Min: null
+    Max: null
+  FractionCSP3:
+    Min: 0.25
+    Max: null
+  FormalCharge:
+    Min: -1
+    Max: 1
+  NumAliphaticRings:
+    Min: null
+    Max: null
+Lipinski: true
