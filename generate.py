@@ -8,7 +8,7 @@ from multiprocessing import Pool, cpu_count
 import torch
 from tqdm import tqdm
 
-from utils import model
+from model import ligand_generator
 from utils.postprocess import *
 from utils.io import *
 
@@ -25,7 +25,7 @@ def batch_smiles_to_sdf(smiles_list: List[str], output_dir: str, filter_dict: Un
 
 def generator_process(queue: mp.Queue, generate_model, device, target_seq, max_queue_len: int, model_kwargs: dict, init_seed: Union[int, None]):
     current_seed = init_seed
-    generate_model = getattr(model, generate_model)(device=device)
+    generate_model = getattr(ligand_generator, generate_model)(device=device)
     while True:
         if queue.qsize() < max_queue_len:
             if current_seed is not None:
@@ -83,9 +83,16 @@ def run_pipeline(generate_model, device: str, target_seq: str, model_kwargs: dic
     gen_proc.start()
     pp_proc.start()
 
-    pp_proc.join()
-    gen_proc.terminate()
-    torch.cuda.empty_cache()
+    try:
+        pp_proc.join()
+    except KeyboardInterrupt:
+        print("\nKeyboardInterrupt detected. Terminating processes...")
+        gen_proc.terminate()
+        pp_proc.terminate()
+        gen_proc.join()
+        pp_proc.join()
+    finally:
+        torch.cuda.empty_cache()
 
 def main():
     parser = argparse.ArgumentParser()
@@ -128,4 +135,5 @@ def main():
     )
 
 if __name__ == "__main__":
+    mp.freeze_support()
     main()

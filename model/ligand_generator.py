@@ -12,7 +12,7 @@ def set_seed(seed: Union[int, None]):
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
 
-class AbstractModel(ABC):
+class AbstractGeneratorModel(ABC):
     @abstractmethod
     def __init__(self, device: str, **kwargs):
         pass
@@ -21,7 +21,7 @@ class AbstractModel(ABC):
     def generate(self, target_seq, seed, **kwargs) -> List[str]:
         pass
 
-class DrugGPT(AbstractModel):
+class DrugGPT(AbstractGeneratorModel):
     def __init__(self, device: str="cpu", local_dir: Union[None, str]=None):
         self.tokenizer = AutoTokenizer.from_pretrained('liyuesen/druggpt', cache_dir=local_dir)
         self.model = GPT2LMHeadModel.from_pretrained("liyuesen/druggpt", cache_dir=local_dir)
