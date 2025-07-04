@@ -93,7 +93,7 @@ def smiles_to_sdf(smiles: str,
 
     smiles_hash = hashlib.sha1(canonical_smiles.encode()).hexdigest()
     sdf_path = os.path.join(output_dir, f"{smiles_hash}.sdf")
-    json_path = os.path.join(output_dir, f"{smiles_hash}_prop.json")
+    json_path = os.path.join(output_dir, f"{smiles_hash}.json")
 
     if not os.path.exists(sdf_path):
         mol_prop = calc_mol_properties(mol)

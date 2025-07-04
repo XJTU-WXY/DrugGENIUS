@@ -4,6 +4,7 @@ import argparse
 import time
 import multiprocessing as mp
 from multiprocessing import Pool, cpu_count
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import torch
 from tqdm import tqdm
@@ -17,10 +18,15 @@ def _smiles_to_sdf_worker(args):
     smiles, output_dir, filter_dict, em_iters = args
     return smiles_to_sdf(smiles, output_dir, filter_dict, em_iters)
 
-def batch_smiles_to_sdf(smiles_list: List[str], output_dir: str, filter_dict: Union[dict, None], em_iters: int, num_pp_processes: int):
-    with Pool(processes=num_pp_processes) as pool:
-        args = [(smi, output_dir, filter_dict, em_iters) for smi in smiles_list]
-        results = pool.map(_smiles_to_sdf_worker, args)
+def batch_smiles_to_sdf(smiles_list: List[str], output_dir: str, filter_dict: Union[dict, None], em_iters: int, num_pp_threads: int):
+    args_list = [(smi, output_dir, filter_dict, em_iters) for smi in smiles_list]
+    results = []
+
+    with ThreadPoolExecutor(max_workers=num_pp_threads) as executor:
+        futures = [executor.submit(_smiles_to_sdf_worker, args) for args in args_list]
+        for future in as_completed(futures):
+            results.append(future.result())
+
     return results
 
 def generator_process(queue: mp.Queue, generate_model, device, target_seq, max_queue_len: int, model_kwargs: dict, init_seed: Union[int, None]):
@@ -36,7 +42,7 @@ def generator_process(queue: mp.Queue, generate_model, device, target_seq, max_q
             time.sleep(0.5)
 
 def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None], em_iters: int, total_num: int,
-               counter: mp.Value, num_pp_processes: int):
+               counter: mp.Value, num_pp_threads: int):
     current_batch = 1
     pbar = tqdm(total=total_num, desc="Generating ligands", position=0)
     while True:
@@ -49,7 +55,7 @@ def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None],
                 output_dir=output_dir,
                 filter_dict=filter_dict,
                 em_iters=em_iters,
-                num_pp_processes=num_pp_processes
+                num_pp_threads=num_pp_threads
             )
             success_count = sum([1 for r in results if r == 0])
             duplicate = [r for r in results if r]
@@ -72,19 +78,20 @@ def pp_process(queue: mp.Queue, output_dir: str, filter_dict: Union[dict, None],
 def run_pipeline(generate_model, device: str, target_seq: str, model_kwargs: dict,
                  output_dir: str, total_num: int,
                  filter_dict: Union[dict, None], em_iters: int,
-                 max_queue_len: int, num_pp_proc: int, init_seed: Union[int, None]):
+                 max_queue_len: int, num_pp_threads: int, init_seed: Union[int, None]):
     mp.set_start_method("spawn", force=True)
     queue = mp.Queue(maxsize=max_queue_len)
     counter = mp.Value('i', 0)
 
     gen_proc = mp.Process(target=generator_process, args=(queue, generate_model, device, target_seq, max_queue_len, model_kwargs, init_seed))
-    pp_proc = mp.Process(target=pp_process, args=(queue, output_dir, filter_dict, em_iters, total_num, counter, num_pp_proc))
+    pp_proc = mp.Process(target=pp_process, args=(queue, output_dir, filter_dict, em_iters, total_num, counter, num_pp_threads))
 
     gen_proc.start()
     pp_proc.start()
 
     try:
         pp_proc.join()
+        gen_proc.terminate()
     except KeyboardInterrupt:
         print("\nKeyboardInterrupt detected. Terminating processes...")
         gen_proc.terminate()
@@ -102,9 +109,9 @@ def main():
     parser.add_argument('-n', '--total_num', type=int, default=1000, help='Total number of ligands to generate.')
     parser.add_argument('-f', '--filter', type=str, default=os.path.join(os.getcwd(), "filter_generate.yaml"), help='Path of filter config file.')
     parser.add_argument('-d', '--device', type=str, default="cuda", help='Device to use.')
-    parser.add_argument('--pp_proc', type=int, default=cpu_count(), help='Number of post-processing parallel processes.')
+    parser.add_argument('--threads', type=int, default=cpu_count(), help='Number of post-processing threads.')
     parser.add_argument('--em_iters', type=int, default=10000, help='Max number of iterations for energy minimization.')
-    parser.add_argument('--queue_len', type=int, default=100, help='Maximum length of the cache queue.')
+    parser.add_argument('--queue_len', type=int, default=20, help='Maximum length of the cache queue.')
     parser.add_argument('--init_seed', type=int, default=None, help='The initial random seed for result reproducibility. Each generated batch will increase the seed by one. If not specified, current timestamp will be used as random seed for each batch.')
     args, unknown_args = parser.parse_known_args()
     model_kwargs = parse_extra_args(unknown_args)
@@ -130,7 +137,7 @@ def main():
         filter_dict=load_yaml(args.filter),
         em_iters=args.em_iters,
         max_queue_len=args.queue_len,
-        num_pp_proc=args.pp_proc,
+        num_pp_threads=args.pp_threads,
         init_seed=args.init_seed
     )
 

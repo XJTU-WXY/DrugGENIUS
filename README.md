@@ -16,7 +16,7 @@ Sequence-based deep learning models for ligand design have recently garnered inc
 
 This project aims to provide an all-in-one, cross-platform, and efficient framework for sequence-based ligand design, streamlining the complex process into a series of simple and user-friendly steps—such as ligand molecule generation, property evaluation, filtering, novelty checking, and docking.
 
-Currently, the project includes an optimized implementation of the DrugGPT model. By decoupling the generation and post-processing stages and eliminating the inefficient single-threaded design of the original version, the generation speed has been improved by 7–10×. Additionally, the framework introduces a set of practical tools for molecule filtering based on physicochemical properties. Support for more models is planned in future updates.
+Currently, the project includes an optimized implementation of the [DrugGPT](https://github.com/LIYUESEN/druggpt) model. By decoupling the generation and post-processing stages and eliminating the inefficient single-threaded design of the original version, the generation speed has been improved by 7–10×. Additionally, the framework introduces a set of practical tools for molecule filtering based on physicochemical properties. An efficient implementation of the sequence-based affinity prediction model [transformerCPI2.0](https://github.com/lifanchen-simm/transformerCPI2.0) is also included to efficiently and accurately predict affinity. Support for more models is planned in future updates.
 
 ## 📥 Deployment
 ### Clone
@@ -39,7 +39,7 @@ pip install -r requirements.txt
 ### ⚗ Ligand generation
 Unlike the original implementation of DrugGPT, DrugGENIUS can automatically detect whether the input text is a raw sequence or a path to a FASTA file. It decouples molecule generation and post-processing into two parallel processes, using a shared cache queue to transfer generated molecules. Post-processing is also optimized with multi-processing, enabling simultaneous molecular property calculation, filtering, and energy minimization—significantly improving overall performance and throughput.
 
-This step will generate ligand .sdf files and corresponding _prop.json files containing molecular physicochemical properties in output directory. Both files are named using the hash value of the SMILES string.
+This step will generate ligand *.sdf files and corresponding *.json files containing molecular physicochemical properties in output directory. Both files are named using the hash value of the SMILES string.
 
 On the first run, the required model will be automatically downloaded from HuggingFace. Please ensure a stable internet connection and be patient during the download process.
 
@@ -53,9 +53,9 @@ Use `generate.py`
     > Filtering can be applied directly during generation process so that all generated ligands meet the criteria. To customize the filtering criteria, modify the `filter_generate.yaml` file
   - `-d` | `--device`: Device to use. Default: `cuda`. 
     > In a multi-GPU environment, specify the order of GPU to be used, such as `cuda:1`. Multi-GPU distributed inference will be supported in future versions.
-  - `--pp_proc`: Number of post-processing parallel processes. Default value is the total number of CPU cores on the device.
+  - `--threads`: Number of post-processing threads. Default value is the total number of CPU cores on the device.
   - `--em_iters`: Max number of iterations for energy minimization. Default: `10000`
-  - `--queue_len`: Maximum length of the cache queue. Default: `100`. 
+  - `--queue_len`: Maximum length of the cache queue. Default: `20`. 
   - `--init_seed`: The initial random seed for result reproducibility. Each generated batch will increase the seed by one. If not specified, current timestamp will be used as random seed for each batch.
   
 - Arguments for `DrugGPT` model
@@ -75,12 +75,18 @@ Before using, please download reference database supported by FPSim2 to the root
 Use `check_novelty.py`
 - Common arguments
   - `-i` | `--input`: Path of input directory containing *_prop.json files. Default: `./result/generated_ligands/`  
+  - `-o` | `--output`: Path of input directory containing *_prop.json files. Default: `./result/novelty_checking/`  
   - `-t` | `--threshold`: Tanimoto similarity threshold. Default: `0.6`
     > The lower the threshold is, the more patent molecules will be searched, and the slower the search speed will be. 
   - `-f` | `--fp_database`: Path of FPSim2 reference database. Default: `./fpsim2_fingerprints.h5`. 
   - `-d` | `--device`: Device to use. Default: `cpu`. 
     > GPU is also supported, just set to `cuda`. In a multi-GPU environment, specify the order of GPU to be used, such as `cuda:1`.
-  - `--proc`: Number of parallel processes. Default value is the total number of CPU cores on the device. Not avaliable when `--device` is set to `cuda`.
+  - `--threads`: Number of threads. Default value is the total number of CPU cores on the device. Not avaliable when `--device` is set to `cuda`.
+
+### 📊 Affinity Prediction
+Compared with traditional molecular docking, a number of affinity prediction methods based on deep learning have emerged, which can efficiently and accurately predict affinity scores. DrugGENIUS currently includes an efficient implementation of transformerCPI2.0 and will support more models in the future.
+
+**TODO**
 
 ### 🗃 Clustering
 When working with a large number of generated ligands, clustering based on molecular fingerprints is a good strategy to identify candidates for further study. DrugGENIUS supports filtering molecules based on specified property criteria, followed by dimensionality reduction and clustering using t-SNE and the Louvain algorithm. The process produces both a detailed report table and a visualized clustering plot.
@@ -94,7 +100,7 @@ Use `clutser.py`
     > Filtering can be applied during clustering process to reduce calculation. To customize the filtering criteria, modify the `filter_clustering.yaml` file.
   - `--no_cache`: Force refreshing the cache of fps and dimensionality reduction results.
     > Calculating fingerprints and dimensionality reduction may take a long time. By default, already calculated fingerprints and t-SNE embeddings will not be recalculated in a new run. To force a cache refresh, enable this argument.
-  - `--proc`: Number of dimensionality reduction and clustering processes. Default value is the total number of CPU cores on the device.
+  - `--threads`: Number of threads for dimensionality reduction and clustering. Default value is the total number of CPU cores on the device.
   - `--seed`: Random seed for dimensionality reduction and clustering. Default: `42`
 
 ### 🔩 Docking

@@ -41,7 +41,7 @@ def process_single_file(args):
     ligand_hash = data["Hash"]
     smiles = data["SMILES"]
     fp_path = os.path.join(output_dir, f"{ligand_hash}_fp.npy")
-    sim_path = os.path.join(output_dir, f"{ligand_hash}_sim.csv")
+    # sim_path = os.path.join(output_dir, f"{ligand_hash}_sim.csv")
 
     # If cached fingerprint exists, load it
     if os.path.exists(fp_path) and not no_cache:
@@ -51,18 +51,18 @@ def process_single_file(args):
         np.save(fp_path, fp)
 
     # Similarity check
-    if os.path.exists(sim_path):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            sims = np.loadtxt(sim_path, delimiter=",", skiprows=1)
-        is_novel = True if sims.size == 0 else False
-    else:
-        is_novel = None
+    # if os.path.exists(sim_path):
+    #     with warnings.catch_warnings():
+    #         warnings.simplefilter("ignore")
+    #         sims = np.loadtxt(sim_path, delimiter=",", skiprows=1)
+    #     is_novel = True if sims.size == 0 else False
+    # else:
+    #     is_novel = None
 
     return {
         "prop": data,
         "fp": fp,
-        "is_novel": is_novel,
+        # "is_novel": is_novel,
     }
 
 def louvain_clustering(embeddings, k=10, metric='euclidean', seed=42, n_jobs=-1):
@@ -90,8 +90,8 @@ def main():
     parser.add_argument("-o", "--output", type=str, default=os.path.join(os.getcwd(), "result", "cluster_report"), help="Path of output directory for report files.")
     parser.add_argument("-k", "--k_neighbors", type=float, default=10, help="Number of nearest neighbors to use in clustering.")
     parser.add_argument('-f', '--filter', type=str, default=os.path.join(os.getcwd(), "filter_cluster.yaml"), help='Path of filter config file.')
+    parser.add_argument("--threads", type=int, default=cpu_count(), help="Number of threads for dimensionality reduction and clustering.")
     parser.add_argument("--no_cache", action='store_true', default=False, help="Force refreshing the cache of fps and t-SNE results.")
-    parser.add_argument("--proc", type=int, default=cpu_count(), help="Number of parallel processes.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for t-SNE.")
     args = parser.parse_args()
     paras = vars(args)
@@ -115,7 +115,7 @@ def main():
 
     fps = np.array([r["fp"] for r in results])
     props = [r["prop"] for r in results]
-    novelty_flags = [r["is_novel"] for r in results]
+    # novelty_flags = [r["is_novel"] for r in results]
 
     # Clustering (t-SNE + Louvain)
     embedding_path = os.path.join(args.output, "tsne_embeddings.npy")
@@ -136,7 +136,8 @@ def main():
     print("Saving cluster report ...")
     cluster_report = []
     for i, prop in enumerate(props):
-        prop.update({"Novelty": novelty_flags[i], "Cluster": int(labels[i])})
+        # prop.update({"Novelty": novelty_flags[i], "Cluster": int(labels[i])})
+        prop.update({"Cluster": int(labels[i])})
         cluster_report.append(prop)
     pd.DataFrame(cluster_report).to_csv(os.path.join(args.output, "cluster_report.csv"), index=False)
 
@@ -166,33 +167,33 @@ def main():
     plt.close()
 
     # Plot 2: colored by novelty
-    plt.figure(figsize=(10,8), dpi=1000)
-    novel_idxs = [i for i, flag in enumerate(novelty_flags) if flag == True]
-    similar_idxs = [i for i, flag in enumerate(novelty_flags) if flag == False]
-    unknown_idxs = [i for i, flag in enumerate(novelty_flags) if flag is None]
-    # Novel group
-    plt.scatter(embeddings[novel_idxs, 0], embeddings[novel_idxs, 1], color="indianred", label="Novel", s=0.05, alpha=0.7)
-    # Similar group
-    plt.scatter(embeddings[similar_idxs, 0], embeddings[similar_idxs, 1], color="royalblue", label="Similar to patented", s=0.05, alpha=0.7)
-
-    plt.scatter(embeddings[unknown_idxs, 0], embeddings[unknown_idxs, 1], color="grey", label="Unknown", s=0.05, alpha=0.7)
-
-    legend_handles = [
-        mlines.Line2D([], [], color='indianred', marker='o', linestyle='None',
-                      markersize=6, label='Novel'),
-        mlines.Line2D([], [], color='royalblue', marker='o', linestyle='None',
-                      markersize=6, label='Similar to patented'),
-        mlines.Line2D([], [], color='grey', marker='o', linestyle='None',
-                      markersize=6, label='Unknown'),
-    ]
-
-    plt.title("Novelty of Ligands", fontsize=16)
-    plt.xlabel("t-SNE Dimension 1", fontsize=14)
-    plt.ylabel("t-SNE Dimension 2", fontsize=14)
-    plt.legend(handles=legend_handles, fontsize=14)
-    plt.tight_layout()
-    plt.savefig(os.path.join(args.output, "novelty.pdf"))
-    plt.close()
+    # plt.figure(figsize=(10,8), dpi=1000)
+    # novel_idxs = [i for i, flag in enumerate(novelty_flags) if flag == True]
+    # similar_idxs = [i for i, flag in enumerate(novelty_flags) if flag == False]
+    # unknown_idxs = [i for i, flag in enumerate(novelty_flags) if flag is None]
+    # # Novel group
+    # plt.scatter(embeddings[novel_idxs, 0], embeddings[novel_idxs, 1], color="indianred", label="Novel", s=0.05, alpha=0.7)
+    # # Similar group
+    # plt.scatter(embeddings[similar_idxs, 0], embeddings[similar_idxs, 1], color="royalblue", label="Similar to patented", s=0.05, alpha=0.7)
+    #
+    # plt.scatter(embeddings[unknown_idxs, 0], embeddings[unknown_idxs, 1], color="grey", label="Unknown", s=0.05, alpha=0.7)
+    #
+    # legend_handles = [
+    #     mlines.Line2D([], [], color='indianred', marker='o', linestyle='None',
+    #                   markersize=6, label='Novel'),
+    #     mlines.Line2D([], [], color='royalblue', marker='o', linestyle='None',
+    #                   markersize=6, label='Similar to patented'),
+    #     mlines.Line2D([], [], color='grey', marker='o', linestyle='None',
+    #                   markersize=6, label='Unknown'),
+    # ]
+    #
+    # plt.title("Novelty of Ligands", fontsize=16)
+    # plt.xlabel("t-SNE Dimension 1", fontsize=14)
+    # plt.ylabel("t-SNE Dimension 2", fontsize=14)
+    # plt.legend(handles=legend_handles, fontsize=14)
+    # plt.tight_layout()
+    # plt.savefig(os.path.join(args.output, "novelty.pdf"))
+    # plt.close()
 
 
 if __name__ == "__main__":
