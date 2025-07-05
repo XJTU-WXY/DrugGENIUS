@@ -1,18 +1,21 @@
 from typing import List
 
+import warnings
 import argparse
 import time
 import multiprocessing as mp
-from multiprocessing import Pool, cpu_count
+from multiprocessing import cpu_count
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import torch
 from tqdm import tqdm
+from rdkit.rdBase import BlockLogs
 
 from model import ligand_generator
 from utils.postprocess import *
 from utils.io import *
 
+warnings.filterwarnings('ignore')
 
 def _smiles_to_sdf_worker(args):
     smiles, output_dir, filter_dict, em_iters = args
@@ -96,10 +99,9 @@ def run_pipeline(generate_model, device: str, target_seq: str, model_kwargs: dic
         print("\nKeyboardInterrupt detected. Terminating processes...")
         gen_proc.terminate()
         pp_proc.terminate()
-        gen_proc.join()
-        pp_proc.join()
     finally:
-        torch.cuda.empty_cache()
+        queue.close()
+        queue.join_thread()
 
 def main():
     parser = argparse.ArgumentParser()

@@ -3,13 +3,14 @@ from typing import Union
 import os
 import hashlib
 
-from rdkit import Chem, RDLogger
+from rdkit import Chem
 from rdkit.Chem import AllChem, Descriptors, Lipinski, QED, rdMolDescriptors
 from rdkit.Contrib.SA_Score import sascorer
+from rdkit.rdBase import BlockLogs
 
 from utils.io import *
 
-RDLogger.DisableLog('rdApp.*')
+block = BlockLogs()
 
 def calc_mol_properties(mol: Chem.Mol):
     mol = Chem.AddHs(mol)
@@ -55,6 +56,7 @@ def passes_lipinski(mol_prop):
     return sum(conditions) >= 3
 
 def smiles_to_mol(smiles: str) -> Union[Chem.Mol, None]:
+    block = BlockLogs()
     mol = Chem.MolFromSmiles(smiles)
     return mol
 
