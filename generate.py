@@ -137,7 +137,7 @@ def main():
         filter_dict=load_yaml(args.filter),
         em_iters=args.em_iters,
         max_queue_len=args.queue_len,
-        num_pp_threads=args.pp_threads,
+        num_pp_threads=args.threads,
         init_seed=args.init_seed
     )
 
