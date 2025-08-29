@@ -180,7 +180,7 @@ After above steps, users can identify molecules of interest according to their r
 | Lipinski             | Whether to apply Lipinski's Rule of Five for drug-likeness.                 |
 
 ## 📑 Cite this work
-**TODO**
+[![DOI](https://zenodo.org/badge/1012404941.svg)](https://doi.org/10.5281/zenodo.16992818)
 
 ## ⚖ License
 This project is licensed under [GNU General Public License v3.0](https://www.gnu.org/licenses/gpl-3.0.html).
