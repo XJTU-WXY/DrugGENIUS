@@ -31,17 +31,9 @@ def compute_morgan_fp(smiles: str):
 
 
 def process_single_file(args):
-    file_path, output_dir, filter_dict, no_cache = args
+    idx, smiles, ligand_hash, result_dir, no_cache = args
 
-    data = load_json(file_path)
-
-    if not filter_mol_by_prop(data, filter_dict):
-        return None
-
-    ligand_hash = data["Hash"]
-    smiles = data["SMILES"]
-    fp_path = os.path.join(output_dir, f"{ligand_hash}_fp.npy")
-    # sim_path = os.path.join(output_dir, f"{ligand_hash}_sim.csv")
+    fp_path = os.path.join(result_dir, f"{ligand_hash}_fp.npy")
 
     # If cached fingerprint exists, load it
     if os.path.exists(fp_path) and not no_cache:
@@ -50,19 +42,9 @@ def process_single_file(args):
         fp = compute_morgan_fp(smiles)
         np.save(fp_path, fp)
 
-    # Similarity check
-    # if os.path.exists(sim_path):
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore")
-    #         sims = np.loadtxt(sim_path, delimiter=",", skiprows=1)
-    #     is_novel = True if sims.size == 0 else False
-    # else:
-    #     is_novel = None
-
     return {
-        "prop": data,
+        "idx": idx,
         "fp": fp,
-        # "is_novel": is_novel,
     }
 
 def louvain_clustering(embeddings, k=10, metric='euclidean', seed=42, n_jobs=-1):
@@ -86,10 +68,8 @@ def louvain_clustering(embeddings, k=10, metric='euclidean', seed=42, n_jobs=-1)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--input", type=str, default=os.path.join(os.getcwd(), "result", "generated_ligands"), help="Path of input directory containing *_prop.json files.")
-    parser.add_argument("-o", "--output", type=str, default=os.path.join(os.getcwd(), "result", "cluster_report"), help="Path of output directory for report files.")
+    parser.add_argument("-i", "--input", type=str, default=os.path.join(os.getcwd(), "result"), help="Path of input directory containing *_prop.json files.")
     parser.add_argument("-k", "--k_neighbors", type=float, default=10, help="Number of nearest neighbors to use in clustering.")
-    parser.add_argument('-f', '--filter', type=str, default=os.path.join(os.getcwd(), "filter_cluster.yaml"), help='Path of filter config file.')
     parser.add_argument("--threads", type=int, default=cpu_count(), help="Number of threads for dimensionality reduction and clustering.")
     parser.add_argument("--no_cache", action='store_true', default=False, help="Force refreshing the cache of fps and t-SNE results.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for t-SNE.")
@@ -97,49 +77,43 @@ def main():
     paras = vars(args)
     about("Clustering", paras)
 
-    os.makedirs(args.output, exist_ok=True)
+    report_file_path = os.path.join(args.input, "ligand_report.csv")
+    report_df = pd.read_csv(report_file_path)
+    result_dir = os.path.join(args.input, "clustering")
+    os.makedirs(result_dir, exist_ok=True)
 
-    filter_dict = load_yaml(args.filter)
-
-    files = [os.path.join(args.input, f) for f in os.listdir(args.input) if f.endswith("_prop.json")]
-    tasks = [(f, args.input, filter_dict, args.no_cache) for f in files]
+    tasks = [(idx, row["SMILES"], row["Hash"], result_dir, args.no_cache) for idx, row in report_df.iterrows()]
 
     print(f"Found {len(tasks)} ligands.")
 
-    with mp.Pool(args.proc) as pool:
+    with mp.Pool(args.threads) as pool:
         results = list(tqdm(pool.imap(process_single_file, tasks), total=len(tasks), desc="Extracting fingerprints"))
 
-    results = [_ for _ in results if _ is not None]
-
-    print(f"{len(results)} ligands remain after filtering.")
-
     fps = np.array([r["fp"] for r in results])
-    props = [r["prop"] for r in results]
-    # novelty_flags = [r["is_novel"] for r in results]
+    idxs = [r["idx"] for r in results]
 
     # Clustering (t-SNE + Louvain)
-    embedding_path = os.path.join(args.output, "tsne_embeddings.npy")
+    embedding_path = os.path.join(args.input, "tsne_embeddings.npy")
     if os.path.exists(embedding_path) and not args.no_cache:
         print("Loading cached t-SNE embeddings ...")
         embeddings = np.load(embedding_path)
     else:
         print("Running t-SNE dimensionality reduction ...")
-        tsne = TSNE(n_components=2, random_state=args.seed, n_jobs=args.proc)
+        tsne = TSNE(n_components=2, random_state=args.seed, n_jobs=args.threads)
         embeddings = tsne.fit_transform(fps)
         np.save(embedding_path, embeddings)
 
     print("Running clustering ...")
 
-    labels = louvain_clustering(embeddings, k=args.resolution, metric='euclidean', seed=args.seed, n_jobs=args.proc)
+    labels = louvain_clustering(embeddings, k=args.k_neighbors, metric='euclidean', seed=args.seed, n_jobs=args.threads)
 
     # Save cluster info per molecule
     print("Saving cluster report ...")
-    cluster_report = []
-    for i, prop in enumerate(props):
-        # prop.update({"Novelty": novelty_flags[i], "Cluster": int(labels[i])})
-        prop.update({"Cluster": int(labels[i])})
-        cluster_report.append(prop)
-    pd.DataFrame(cluster_report).to_csv(os.path.join(args.output, "cluster_report.csv"), index=False)
+    report_df["Cluster"] = None
+    for i, idx in enumerate(idxs):
+        report_df.at[idx, "Cluster"] = labels[i]
+
+    report_df.to_csv(report_file_path, index=False)
 
     # Plot 1: colored by cluster
     print("Saving cluster plots ...")
@@ -163,7 +137,7 @@ def main():
     plt.xlabel("t-SNE Dimension 1", fontsize=14)
     plt.ylabel("t-SNE Dimension 2", fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(args.output, "clusters.pdf"))
+    plt.savefig(os.path.join(args.input, "clusters.pdf"))
     plt.close()
 
     # Plot 2: colored by novelty

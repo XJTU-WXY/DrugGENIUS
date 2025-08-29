@@ -10,3 +10,6 @@ networkx
 python-louvain
 tape_proteins
 huggingface_hub
+meeko
+prody
+pandas

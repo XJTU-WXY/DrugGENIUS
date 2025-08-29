@@ -10,7 +10,7 @@
 </div>
 
 ## 🛠 THIS PROJECT IS STILL UNDER DEVELOPMENT
-Currently only limited functions are implemented, including generation, molecular properties calculation, filtering, novelty checking, and clustering. It may contain bugs and should be used at your own risk.
+Currently only limited functions are implemented, It may contain bugs and should be used at your own risk.
 ## 🚩 Introduction
 Sequence-based deep learning models for ligand design have recently garnered increasing interests in the research community. These end-to-end approaches, which generate ligand SMILES directly from protein amino acid sequences, not only enable access to a broader and more readily available training dataset but also allow the model to move beyond the constraints of binding pocket structures and leverage the richer information embedded in the primary sequence.
 
@@ -36,19 +36,24 @@ pip install -r requirements.txt
 ```
 🔔 Please also install the appropriate version of [PyTorch](https://pytorch.org/) according to your platform.
 ## 🗝 Usage
-### ⚗ Ligand generation
-Unlike the original implementation of DrugGPT, DrugGENIUS can automatically detect whether the input text is a raw sequence or a path to a FASTA file. It decouples molecule generation and post-processing into two parallel processes, using a shared cache queue to transfer generated molecules. Post-processing is also optimized with multi-processing, enabling simultaneous molecular property calculation, filtering, and energy minimization—significantly improving overall performance and throughput.
+### ⚗ Generate new ligands
+Unlike the original implementation of DrugGPT, DrugGENIUS can automatically detect whether the input text is a raw sequence or a path to a FASTA file. It decouples molecule generation and post-processing into two parallel processes, using a shared cache queue to transfer generated molecules. Post-processing is also optimized with multi-threading, enabling simultaneous molecular property calculation, filtering, and energy minimization—significantly improving overall performance and throughput.
 
 This step will generate ligand *.sdf files and corresponding *.json files containing molecular physicochemical properties in output directory. Both files are named using the hash value of the SMILES string.
 
 On the first run, the required model will be automatically downloaded from HuggingFace. Please ensure a stable internet connection and be patient during the download process.
 
 Use `generate.py`
+
+📌 Example:
+```shell
+python generate.py -i BCL2L11.fasta
+```
 - Common arguments
   - `-i` | `--input`: Path of FASTA file or amino acid string of target protein. 
-  - `-o` | `--output`: Path of directory for generated sdf files of ligands. Default: `./result/generated_ligands/`
+  - `-o` | `--output`: Path of directory for the project. Default: `./result/`
   - `-m` | `--model`: Model to use for generation. Currently only supports: `DrugGPT`
-  - `-n` | `--total_num`: Total number of ligands to generate. Default: `1000`
+  - `-n` | `--total_num`: Total number of ligands to generate. Default: `10000`
   - `-f` | `--filter`: Path of filter config file. Default: `./filter_generate.yaml`. 
     > Filtering can be applied directly during generation process so that all generated ligands meet the criteria. To customize the filtering criteria, modify the `filter_generate.yaml` file
   - `-d` | `--device`: Device to use. Default: `cuda`. 
@@ -57,6 +62,7 @@ Use `generate.py`
   - `--em_iters`: Max number of iterations for energy minimization. Default: `10000`
   - `--queue_len`: Maximum length of the cache queue. Default: `20`. 
   - `--init_seed`: The initial random seed for result reproducibility. Each generated batch will increase the seed by one. If not specified, current timestamp will be used as random seed for each batch.
+  - `--record_raw_output`: For research purposes, record the raw SMILES string output by the ligand generation model in the json file.
   
 - Arguments for `DrugGPT` model
   - `--batch_size`: The number of molecules to try to generate in each batch. Default: `16`
@@ -67,15 +73,47 @@ Use `generate.py`
   - `--top_p`: The cumulative probability threshold (0.0 - 1.0) for top-p (nucleus) sampling. It defines the minimum subset of tokens to consider for random sampling. Default: `0.9`.
   - `--temp`: Adjusts the randomness of text generation. Higher values produce more diverse outputs. Default: `1.0`.
 
+### 🗳 Start from existed ligands
+Sometimes, we already have a list of candidate ligands and are only interested in subsequent screening, affinity prediction, docking, etc. In this case, we need to prepare a text file with each line containing the SMILES of a ligand, and use `from_existed.py` to extract properties and perform energy minimization for subsequent processing by DrugGENIUS.
+
+📌 Example:
+```shell
+python from_existed.py -i example_exsited_ligands.txt
+```
+- Common arguments
+  - `-i` | `--input`: Path of a txt file containing existed SMILES, one per line.
+  - `-o` | `--output`: Path of directory for the project. Default: `./result/`
+  - `-f` | `--filter`: Path of filter config file. Default: `./filter_generate.yaml`. 
+    > Similar to the generation process, filtering can also be applied when starting from an exsited ligand list. To customize the filtering criteria, modify the `filter_generate.yaml` file
+  - `--threads`: Number of post-processing threads. Default value is the total number of CPU cores on the device.
+  - `--em_iters`: Max number of iterations for energy minimization. Default: `10000`
+
+### 📇 Export report file
+Before subsequent steps, a report file needs to be exported from all candidate ligands. This file `generation_report.csv` stores the metadata for each ligand. Subsequent steps will be based on this file, and the results will be stored as a new column.
+
+Use `report.py`
+
+📌 Example:
+```shell
+python report.py
+```
+- Common arguments
+  - `-i` | `--input`: Path of directory for the project. Default: `./result/`
+  - `--threads`: Number of reading threads. Default value is the total number of CPU cores on the device.
+
 ### ✨ Novelty checking
 DrugGENIUS enables comparison of generated ligands against a patent molecule database using Morgan fingerprint-based Tanimoto similarity. For each ligand, a CSV report is generated, listing patent molecule IDs with similarity scores above a specified threshold.
 
 Before using, please download reference database supported by FPSim2 to the root directory of this project. Here we use [SureChEMBL](https://ftp.ebi.ac.uk/pub/databases/chembl/SureChEMBL/bulk_data/latest/fpsim2_fingerprints.h5).
 
 Use `check_novelty.py`
+
+📌 Example:
+```shell
+python check_novelty.py -t 0.7
+```
 - Common arguments
-  - `-i` | `--input`: Path of input directory containing *_prop.json files. Default: `./result/generated_ligands/`  
-  - `-o` | `--output`: Path of input directory containing *_prop.json files. Default: `./result/novelty_checking/`  
+  - `-i` | `--input`: Path of directory for the project. Default: `./result/`
   - `-t` | `--threshold`: Tanimoto similarity threshold. Default: `0.6`
     > The lower the threshold is, the more patent molecules will be searched, and the slower the search speed will be. 
   - `-f` | `--fp_database`: Path of FPSim2 reference database. Default: `./fpsim2_fingerprints.h5`. 
@@ -86,29 +124,44 @@ Use `check_novelty.py`
 ### 📊 Affinity Prediction
 Compared with traditional molecular docking, a number of affinity prediction methods based on deep learning have emerged, which can efficiently and accurately predict affinity scores. DrugGENIUS currently includes an efficient implementation of transformerCPI2.0 and will support more models in the future.
 
-**TODO**
+Use `predict_affinity.py`
+
+📌 Example:
+```shell
+python predict_affinity.py
+```
+- Common arguments
+  - `-i` | `--input`: Path of directory for the project. Default: `./result/`
+  - `-m` | `--model`: Model to use for prediction. Currently only supports: `TransformerCPI2`
+  - `-b` | `--batch_size`: Number of molecules predicted per batch. Default: 1024. 
+    > A larger batch size results in a larger memory usage.
+  - `-d` | `--device`: Device to use. Default: `cuda`. 
+    > In a multi-GPU environment, specify the order of GPU to be used, such as `cuda:1`.
 
 ### 🗃 Clustering
-When working with a large number of generated ligands, clustering based on molecular fingerprints is a good strategy to identify candidates for further study. DrugGENIUS supports filtering molecules based on specified property criteria, followed by dimensionality reduction and clustering using t-SNE and the Louvain algorithm. The process produces both a detailed report table and a visualized clustering plot.
+When working with a large number of generated ligands, clustering based on molecular fingerprints is a good strategy to identify candidates for further study. DrugGENIUS supports filtering molecules based on specified property criteria, followed by dimensionality reduction and clustering using t-SNE and the Louvain algorithm.
 
 Use `clutser.py`
+
+📌 Example:
+```shell
+python clutser.py
+```
 - Common arguments
-  - `-i` | `--input`: Path of input directory containing *.sdf and *_prop.json files. Default: `./result/generated_ligands/`
-  - `-o` | `--output`: Path of output directory for report files. Default: `./result/cluster_report/`
+  - `-i` | `--input`: Path of directory for the project. Default: `./result/`
   - `-k` | `--k_neighbors`: Number of nearest neighbors to use in clustering. Default: `10`. 
-  - `-f` | `--filter`: Path of filter config file. Default: `./filter_clustering.yaml`. 
-    > Filtering can be applied during clustering process to reduce calculation. To customize the filtering criteria, modify the `filter_clustering.yaml` file.
   - `--no_cache`: Force refreshing the cache of fps and dimensionality reduction results.
     > Calculating fingerprints and dimensionality reduction may take a long time. By default, already calculated fingerprints and t-SNE embeddings will not be recalculated in a new run. To force a cache refresh, enable this argument.
   - `--threads`: Number of threads for dimensionality reduction and clustering. Default value is the total number of CPU cores on the device.
   - `--seed`: Random seed for dimensionality reduction and clustering. Default: `42`
 
 ### 🔩 Docking
-After above steps, users can identify molecules of interest according to their research goals and filtering criteria. DrugGENIUS also supports batch molecular docking and provides docking scores for each ligand. To perform docking, users need to prepare a hash list of selected molecules—this is a plain text file with one hash per line. Alternatively, candidate molecules can be selected directly from the clustering report.
+After above steps, users can identify molecules of interest according to their research goals and filtering criteria. DrugGENIUS also supports batch molecular docking and provides docking scores for each ligand.
 
 **TODO**
 
-### 📇 About the filter
+
+### 🎛 About the filter
 | Property             | Description                                                                 |
 |----------------------|-----------------------------------------------------------------------------|
 | MolWt                | Molecular weight (in Daltons). Filters molecules based on their total mass. |
@@ -148,4 +201,6 @@ The birth of DrugGENIUS is inseparable from the following excellent open-source 
 *Open source leads the world to a brighter future!*
 
 ## 📝 Reference
-[1] Y. Li, C. Gao, X. Song, X. Wang, Y. Xu, and S. Han, “DrugGPT: A GPT-based Strategy for Designing Potential Ligands Targeting Specific Proteins,” Jun. 30, 2023, bioRxiv. doi: 10.1101/2023.06.29.543848.
+[1] Y. Li, C. Gao, X. Song, X. Wang, Y. Xu, S. Han, DrugGPT: A GPT-based Strategy for Designing Potential Ligands Targeting Specific Proteins, (2023) 2023.06.29.543848. https://doi.org/10.1101/2023.06.29.543848.
+
+[2] L. Chen, Z. Fan, J. Chang, R. Yang, H. Hou, H. Guo, Y. Zhang, T. Yang, C. Zhou, Q. Sui, Z. Chen, C. Zheng, X. Hao, K. Zhang, R. Cui, Z. Zhang, H. Ma, Y. Ding, N. Zhang, X. Lu, X. Luo, H. Jiang, S. Zhang, M. Zheng, Sequence-based drug design as a concept in computational drug design, Nat Commun 14 (2023) 4217. https://doi.org/10.1038/s41467-023-39856-w.

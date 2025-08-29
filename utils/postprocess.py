@@ -86,7 +86,8 @@ def mol_to_minimized_sdf(mol: Chem.Mol, output_path: str, em_iters: int=10000) -
 def smiles_to_sdf(smiles: str,
                   output_dir: str,
                   filter_dict: dict,
-                  em_iters: int=10000):
+                  em_iters: int=10000,
+                  record_raw_output=False):
     mol = smiles_to_mol(smiles)
     if mol is None:
         return None
@@ -103,6 +104,8 @@ def smiles_to_sdf(smiles: str,
             return None
         if mol_to_minimized_sdf(mol, sdf_path, em_iters=em_iters):
             meta_data = {"Hash": smiles_hash, "SMILES": canonical_smiles, "GenerationFrequency": 1}
+            if record_raw_output:
+                meta_data["RawOutput"] = smiles
             meta_data.update(mol_prop)
             save_json(meta_data, json_path)
             return 0

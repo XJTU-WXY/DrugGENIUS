@@ -68,14 +68,14 @@ def mol_features(smiles):
     adj_matrix = Chem.GetAdjacencyMatrix(mol)
     return atom_feats, adj_matrix
 
-def get_featurizer(smiles_list: List[str], sequence_list: List[str]) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
+def get_featurizer(smiles_list: List[str], sequence: str) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     compounds, adjacencies, proteins = [], [], []
 
-    for smiles, sequence in zip(smiles_list, sequence_list):
-        atom_feat, adj = mol_features(smiles)
-        encoded_seq = tokenizer.encode(sequence)
-        protein_tensor = torch.tensor(encoded_seq, dtype=torch.long).numpy()
+    encoded_seq = tokenizer.encode(sequence)
+    protein_tensor = torch.tensor(encoded_seq, dtype=torch.long).numpy()
 
+    for smiles in smiles_list:
+        atom_feat, adj = mol_features(smiles)
         compounds.append(atom_feat.astype(np.float32))
         adjacencies.append(adj.astype(np.float32))
         proteins.append(protein_tensor.astype(np.int64))

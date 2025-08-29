@@ -13,7 +13,7 @@ class AbstractAffinityPredictorModel(ABC):
         pass
 
     @abstractmethod
-    def predict(self, protein_list, smiles_list, **kwargs) -> List[float]:
+    def predict(self, protein, smiles_list, **kwargs) -> List[float]:
         pass
 
 class TransformerCPI2(AbstractAffinityPredictorModel):
@@ -46,21 +46,14 @@ class TransformerCPI2(AbstractAffinityPredictorModel):
 
         return atoms_padded, adjs_padded, proteins_padded, atom_lens, protein_lens
 
-    def predict(self, protein_list, smiles_list, batch_size=32):
-        scores = []
+    def predict(self, protein, smiles_list, **kwargs):
         with torch.no_grad():
-            for i in range(0, len(smiles_list), batch_size):
-                batch_smiles = smiles_list[i:i+batch_size]
-                batch_proteins = protein_list[i:i+batch_size]
+            compounds, adjacencies, proteins = featurizer.get_featurizer(smiles_list, protein)
+            atoms_pad, adjs_pad, prots_pad, atom_lens, prot_lens = self.pack(compounds, adjacencies, proteins)
 
-                compounds, adjacencies, proteins = featurizer.get_featurizer(batch_smiles, batch_proteins)
-                atoms_pad, adjs_pad, prots_pad, atom_lens, prot_lens = self.pack(compounds, adjacencies, proteins)
-
-                logits = self.model.forward(atoms_pad, adjs_pad, prots_pad, atom_lens, prot_lens)
-                probs = F.softmax(logits, dim=1)[:, 1]
-                scores.extend(probs.cpu().numpy().tolist())
-
-        return scores
+            logits = self.model.forward(atoms_pad, adjs_pad, prots_pad, atom_lens, prot_lens)
+            probs = F.softmax(logits, dim=1)[:, 1]
+        return probs.cpu().numpy().tolist()
 
 if __name__ == "__main__":
     protein_list = [
