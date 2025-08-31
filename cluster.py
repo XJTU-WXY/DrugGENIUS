@@ -11,14 +11,13 @@ from rdkit import Chem
 from rdkit.Chem import DataStructs, rdFingerprintGenerator
 import matplotlib.pyplot as plt
 import matplotlib.patheffects as PathEffects
-import matplotlib.lines as mlines
 from sklearn.manifold import TSNE
 import networkx as nx
 import community as community_louvain  # aka python-louvain
 from sklearn.neighbors import NearestNeighbors
 
 from utils.io import *
-from utils.postprocess import filter_mol_by_prop
+from visualization import get_point_size
 
 morgan_generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
 
@@ -42,14 +41,11 @@ def process_single_file(args):
         fp = compute_morgan_fp(smiles)
         np.save(fp_path, fp)
 
-    return {
-        "idx": idx,
-        "fp": fp,
-    }
+    return fp
 
 def louvain_clustering(embeddings, k=10, metric='euclidean', seed=42, n_jobs=-1):
     print("Building kNN graph ...")
-    nn = NearestNeighbors(n_neighbors=k + 1, metric=metric, n_jobs=-1)
+    nn = NearestNeighbors(n_neighbors=k + 1, metric=metric, n_jobs=n_jobs)
     nn.fit(embeddings)
     distances, indices = nn.kneighbors(embeddings)
 
@@ -89,8 +85,7 @@ def main():
     with mp.Pool(args.threads) as pool:
         results = list(tqdm(pool.imap(process_single_file, tasks), total=len(tasks), desc="Extracting fingerprints"))
 
-    fps = np.array([r["fp"] for r in results])
-    idxs = [r["idx"] for r in results]
+    fps = np.array(results)
 
     # Clustering (t-SNE + Louvain)
     embedding_path = os.path.join(args.input, "tsne_embeddings.npy")
@@ -109,11 +104,11 @@ def main():
 
     # Save cluster info per molecule
     print("Saving cluster report ...")
-    report_df["Cluster"] = None
-    for i, idx in enumerate(idxs):
-        report_df.at[idx, "Cluster"] = labels[i]
+    report_df["Cluster"] = labels
 
     report_df.to_csv(report_file_path, index=False)
+
+    print(f"Clustering report saved to '{report_file_path}'")
 
     # Plot 1: colored by cluster
     print("Saving cluster plots ...")
@@ -121,7 +116,7 @@ def main():
     unique_labels = set(labels)
     for label in unique_labels:
         idxs = [i for i, l in enumerate(labels) if l == label]
-        plt.scatter(embeddings[idxs, 0], embeddings[idxs, 1], label=f"Cluster {label}", s=0.05)
+        plt.scatter(embeddings[idxs, 0], embeddings[idxs, 1], label=f"Cluster {label}", s=get_point_size(len(report_df)))
         x_center = embeddings[idxs, 0].mean()
         y_center = embeddings[idxs, 1].mean()
         text = plt.text(
@@ -137,37 +132,11 @@ def main():
     plt.xlabel("t-SNE Dimension 1", fontsize=14)
     plt.ylabel("t-SNE Dimension 2", fontsize=14)
     plt.tight_layout()
-    plt.savefig(os.path.join(args.input, "clusters.pdf"))
+    plot_file_path = os.path.join(args.input, "clusters.pdf")
+    plt.savefig(plot_file_path)
     plt.close()
 
-    # Plot 2: colored by novelty
-    # plt.figure(figsize=(10,8), dpi=1000)
-    # novel_idxs = [i for i, flag in enumerate(novelty_flags) if flag == True]
-    # similar_idxs = [i for i, flag in enumerate(novelty_flags) if flag == False]
-    # unknown_idxs = [i for i, flag in enumerate(novelty_flags) if flag is None]
-    # # Novel group
-    # plt.scatter(embeddings[novel_idxs, 0], embeddings[novel_idxs, 1], color="indianred", label="Novel", s=0.05, alpha=0.7)
-    # # Similar group
-    # plt.scatter(embeddings[similar_idxs, 0], embeddings[similar_idxs, 1], color="royalblue", label="Similar to patented", s=0.05, alpha=0.7)
-    #
-    # plt.scatter(embeddings[unknown_idxs, 0], embeddings[unknown_idxs, 1], color="grey", label="Unknown", s=0.05, alpha=0.7)
-    #
-    # legend_handles = [
-    #     mlines.Line2D([], [], color='indianred', marker='o', linestyle='None',
-    #                   markersize=6, label='Novel'),
-    #     mlines.Line2D([], [], color='royalblue', marker='o', linestyle='None',
-    #                   markersize=6, label='Similar to patented'),
-    #     mlines.Line2D([], [], color='grey', marker='o', linestyle='None',
-    #                   markersize=6, label='Unknown'),
-    # ]
-    #
-    # plt.title("Novelty of Ligands", fontsize=16)
-    # plt.xlabel("t-SNE Dimension 1", fontsize=14)
-    # plt.ylabel("t-SNE Dimension 2", fontsize=14)
-    # plt.legend(handles=legend_handles, fontsize=14)
-    # plt.tight_layout()
-    # plt.savefig(os.path.join(args.output, "novelty.pdf"))
-    # plt.close()
+    print(f"Clustering plot saved to '{plot_file_path}'")
 
 
 if __name__ == "__main__":

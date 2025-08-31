@@ -33,6 +33,14 @@ def read_fasta_file(file_path):
         protein_sequence = ''.join(sequence)
     return protein_sequence
 
+def read_docking_result(file_path):
+    with open(file_path, 'r') as f:
+        for line in f:
+            if line.startswith('REMARK VINA RESULT:'):
+                vina_score = float(line.split()[3])
+                break
+    return vina_score
+
 def about(mode, args):
     print(f"""
     ____                   _____________   ________  _______

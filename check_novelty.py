@@ -67,5 +67,7 @@ def main():
 
     report_df.to_csv(report_file_path, index=False)
 
+    print(f"Novelty checking report saved to '{report_file_path}'")
+
 if __name__ == "__main__":
     main()
