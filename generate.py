@@ -34,12 +34,12 @@ def batch_smiles_to_sdf(smiles_list: List[str], output_dir: str, filter_dict: Un
 
 def generator_process(queue: mp.Queue, generate_model, device, target_seq, max_queue_len: int, model_kwargs: dict, init_seed: Union[int, None]):
     current_seed = init_seed
-    generate_model = getattr(ligand_generator, generate_model)(device=device)
+    generate_model = getattr(ligand_generator, generate_model)(target_seq=target_seq, device=device, **model_kwargs)
     while True:
         if queue.qsize() < max_queue_len:
             if current_seed is not None:
                 current_seed += 1
-            smiles_batch = generate_model.generate(target_seq, current_seed, **model_kwargs)
+            smiles_batch = generate_model.generate(seed=current_seed)
             queue.put(smiles_batch)
         else:
             time.sleep(0.5)
