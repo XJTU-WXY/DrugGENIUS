@@ -3,13 +3,13 @@ rdkit
 tqdm
 matplotlib
 scikit-learn
-FPSim2
+fpsim2==0.7.3
 pyyaml
 numpy
 networkx
 python-louvain
-tape_proteins
+tape_proteins==0.5
 huggingface_hub
-meeko
-prody
+meeko==0.6.1
+prody==2.6.1
 pandas

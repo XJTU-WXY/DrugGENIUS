@@ -20,6 +20,8 @@ warnings.filterwarnings('ignore')
 
 
 def filter_report_df(df, filter) -> pd.DataFrame:
+    df.fillna({"MaxSimilarity": 0}, inplace=True)
+
     for prop, bounds in filter.get("Properties", {}).items():
         min_val = bounds.get("Min", None)
         max_val = bounds.get("Max", None)
@@ -110,7 +112,7 @@ def main():
     parser.add_argument('-i', '--input', type=str, default=os.path.join(os.getcwd(), "result"), help='Path of the project directory.')
     parser.add_argument('-f', '--filter', type=str, default=os.path.join(os.getcwd(), "filter_docking.yaml"), help='Path of filter config file.')
     parser.add_argument("-e", '--exhaustiveness', type=int, default=8, help='Exhaustiveness for Autodock Vina.')
-    parser.add_argument('--threads', type=int, default=cpu_count(), help='Number of threads.')
+    parser.add_argument('--threads', type=int, default=4, help='Number of threads.')
     args = parser.parse_args()
     paras = vars(args)
     about("Docking", paras)
