@@ -173,7 +173,7 @@ Molecular docking requires the 3D structure of the target protein and a docking 
 
 **Example:**
 ```shell
-mk_prepare_receptor.py -i your_target.pdb -o your_target --box_enveloping docking_box.sdf
+mk_prepare_receptor -i your_target.pdb -o your_target --box_enveloping docking_box.sdf -p -v
 ```
 
 This step will generate the required files for docking: `your_target.pdbqt` and `your_target.box.txt`.
